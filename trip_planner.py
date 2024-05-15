@@ -19,12 +19,9 @@ def get_travel_suggestions(start_date, end_date, budget, trip_type):
         ]    
     )
 
-    print("Here are some suggested destinations for your trip:")
-    suggestions = completion.choices[0].message.content
-    print(suggestions)
-    
+    suggestions = completion.choices[0].message.content    
     destinations = parse_destinations(suggestions)
-    return destinations
+    return destinations , suggestions
 
 def parse_destinations(suggestions):
     pattern = r'\d+\.\s*(.*?), (.*?) \((.*?)\) -'
@@ -121,14 +118,29 @@ def search_flights_and_hotels(destinations, start_date, end_date, budget):
             hotel_info = get_most_expensive_affordable_hotel(destination['city'], destination['country'], remaining_budget, start_date, end_date)
             if 'name' in hotel_info and 'price' in hotel_info:
                 total_price = flight_info['price'] + hotel_info['price']
-                flight_and_hotel_results.append(f"Destination: {flight_info['destination']}, Flight: ${flight_info['price']}, Hotel: ${hotel_info['price']}")
+                flight_and_hotel_results.append({
+                                    "destination": f"{flight_info['destination']}",
+                                    "flight_price": flight_info['price'],
+                                    "hotel_price": hotel_info['price'],
+                                    "total_price": total_price
+                })            
             else:
-                flight_and_hotel_results.append(f"Destination: {flight_info['destination']}, Flight: ${flight_info['price']}, Hotel Error: {hotel_info['error']}")
+                flight_and_hotel_results.append({
+                                    "destination": f"{flight_info['destination']}",
+                                    "flight_price": flight_info['price'],
+                                    "hotel_price": None,
+                                    "total_price": None,
+                                    "hotel_error": hotel_info['error']
+                })
         else:
-            flight_and_hotel_results.append(f"No flights found for {destination['city']}, {destination['country']}.")
-    
-    for result in flight_and_hotel_results:
-        print(result)
+            flight_and_hotel_results.append({
+                            "destination": f"{destination['city']}, {destination['country']}",
+                            "flight_price": None,
+                            "hotel_price": None,
+                            "total_price": None,
+                            "flight_error": f"No flights found for {destination['city']}, {destination['country']}"
+            })
+    return flight_and_hotel_results
 
 def validate_date(prompt_message):
     while True:
@@ -177,8 +189,30 @@ def main():
     budget = validate_budget("Enter your total budget for the trip in USD: ")
     trip_type = validate_trip_type("Enter the type of your trip (ski, beach, city): ")
     
-    destinations = get_travel_suggestions(start_date, end_date, budget, trip_type)
-    search_flights_and_hotels(destinations, start_date, end_date, budget)
+    destinations, suggestions = get_travel_suggestions(start_date, end_date, budget, trip_type)
+    print("Here are some suggested destinations for your trip:")
+    print(suggestions)
+
+    flight_and_hotel_results = search_flights_and_hotels(destinations, start_date, end_date, budget)
+    
+    # Display the collected information
+    print("Here are the options for your trip:")
+    for index, result in enumerate(flight_and_hotel_results, start=1):
+        print(f"{index}. Destination: {result['destination']}, Total Price: ${result['total_price'] if result['total_price'] else 'N/A'}")
+
+    # Allow the user to choose a destination
+    while True:
+        choice = input("Please enter the number of the destination you choose: ")
+        try:
+            choice_index = int(choice)
+            if 1 <= choice_index <= len(flight_and_hotel_results):
+                chosen_destination = flight_and_hotel_results[choice_index - 1]
+                print(f"Chosen Destination: {chosen_destination['destination']}, Total Price: ${chosen_destination['total_price'] if chosen_destination['total_price'] else 'N/A'}")
+                break
+            else:
+                print("Invalid choice. Please enter a valid number.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
 
 if __name__ == "__main__":
     main()
