@@ -190,8 +190,6 @@ def main():
     trip_type = validate_trip_type("Enter the type of your trip (ski, beach, city): ")
     
     destinations, suggestions = get_travel_suggestions(start_date, end_date, budget, trip_type)
-    print("Here are some suggested destinations for your trip:")
-    print(suggestions)
 
     flight_and_hotel_results = search_flights_and_hotels(destinations, start_date, end_date, budget)
     
