@@ -3,13 +3,12 @@ import re
 from openai import OpenAI
 from serpapi import GoogleSearch
 import requests
-import json
 
+# Initialize your API key at the start of your script
+api_key = 'sk-proj-SRGCSAzogrcsQIu2kwiZT3BlbkFJp02fsLG6iUdA7G5kEfKg'
+client = OpenAI(api_key=api_key)
 
-def get_travel_suggestions(start_date, end_date, budget, trip_type):
-    api_key = 'sk-proj-SRGCSAzogrcsQIu2kwiZT3BlbkFJp02fsLG6iUdA7G5kEfKg'
-    client = OpenAI(api_key=api_key)
-    
+def get_travel_suggestions(start_date, end_date, budget, trip_type):    
     month = start_date.strftime("%B")    
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -143,18 +142,68 @@ def search_flights_and_hotels(destinations, start_date, end_date, budget):
     return flight_and_hotel_results
 
 def generate_daily_plan(destination, start_date, end_date):
-    api_key = 'sk-proj-SRGCSAzogrcsQIu2kwiZT3BlbkFJp02fsLG6iUdA7G5kEfKg'
-    client = OpenAI(api_key=api_key)
-    
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "You are now a travel guide in {destination}. i need you help with planning a daily itinerary for my trip."},
-            {"role": "user", "content": f"I am planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}. Please suggest a daily itinerary."}
-        ]    
+            {"role": "system", "content": "You are a travel guide and a creative advisor for visual content."},
+            {"role": "user", "content": f"I am planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}. Please suggest a detailed daily itinerary. At the end provide exactly 4 descriptions that could visually summarize the entire trip. make the description clear and detailed. please use this format for the  visually summariz:  visually summariz:\n1. A picture of the Eiffel Tower at sunset, symbolizing the iconic landmark of Paris.\n2. A snapshot of colorful flowers in full bloom at the gardens of Versailles, representing the beauty of French landscapes.\n3. An image of the Seine River with historic bridges in the background, showcasing the romantic charm of Paris.\n4. A shot of street artists painting in Montmartre, capturing the artistic spirit and bohemian vibe of the neighborhood."}
+        ]
     )
-    
-    return completion.choices[0].message.content
+
+    # Full content of the response
+    full_content = completion.choices[0].message.content
+
+    # Use regex to split the content at "visually summarize:" (case-insensitive)
+    parts = re.split(r'(?i)visually summarize:', full_content, 1)  # '(?i)' is a regex flag for case-insensitive matching
+    if len(parts) > 1:
+        plan_content = parts[0].strip()
+        image_descriptions_content = parts[1].strip()
+        image_descriptions = extract_image_descriptions("Visually summarize:" + image_descriptions_content)
+    else:
+        plan_content = full_content
+        image_descriptions = []
+
+    return plan_content, image_descriptions
+
+
+def extract_image_descriptions(image_descriptions_content):
+    descriptions = []
+    lines = image_descriptions_content.split('\n')
+    for line in lines:
+        # Check if line starts with a number followed by a period which denotes the start of a description
+        if line.strip().startswith(("1.", "2.", "3.", "4.")):
+            description = line.split(". ", 1)[1] if ". " in line else line
+            descriptions.append(description)
+    return descriptions
+
+def generate_images(descriptions):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    images = []
+    for description in descriptions:
+        response = requests.post(
+            "https://api.openai.com/v1/images/generations",
+            headers=headers,
+            json={
+                "prompt": description,
+                "n": 1,
+                "size": "1024x1024"
+            }
+        )
+        if response.status_code == 200:
+            data = response.json()
+            try:
+                images.append(data['data'][0]['url'])
+            except KeyError:
+                print("No URL found in the response:", data)
+                images.append(None)
+        else:
+            print(f"Failed to generate image with status code {response.status_code}: {response.text}")
+            images.append(None)
+    return images
+
 
 def validate_date(prompt_message):
     while True:
@@ -229,23 +278,34 @@ def validate_trip_type(prompt_message):
     daily_plan = generate_daily_plan(chosen_destination['destination'], start_date, end_date)
     print("Here is your daily plan for the trip:")
     print(daily_plan)
-    
+     
 def main():
     print("Welcome to the Trip Planner!")
     
     # Set up sample data for testing
     start_date = datetime.datetime.now() + datetime.timedelta(days=30)
-    end_date = start_date + datetime.timedelta(days=7)
+    end_date = start_date + datetime.timedelta(days=4)
     budget = 2000
-    trip_type = "beach"  # You can change this to "ski" or "city" for testing different trip types
-    destination = "Miami, USA"  # Change this to any location you want to test
+    trip_type = "city"  # You can change this to "ski" or "city" for testing different trip types
+    destination = "Paris, France"  # Change this to any location you want to test
     
     print(f"Planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}, with a budget of ${budget} for a {trip_type} trip.")
     
     # Generate daily plan for the chosen destination
-    daily_plan = generate_daily_plan(destination, start_date, end_date)
+    daily_plan , image_descriptions = generate_daily_plan(destination, start_date, end_date)
     print("Here is your daily plan for the trip:")
     print(daily_plan)
+    
+    print("Image descriptions suggested for generation:")
+    for description in image_descriptions:
+        print(description)
+    
+    images = generate_images(image_descriptions)
+    for img in images:
+        if img:
+            print(img)
+        else:
+            print("No image generated for this prompt.")
 
 if __name__ == "__main__":
     main()
