@@ -142,6 +142,20 @@ def search_flights_and_hotels(destinations, start_date, end_date, budget):
             })
     return flight_and_hotel_results
 
+def generate_daily_plan(destination, start_date, end_date):
+    api_key = 'sk-proj-SRGCSAzogrcsQIu2kwiZT3BlbkFJp02fsLG6iUdA7G5kEfKg'
+    client = OpenAI(api_key=api_key)
+    
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are now a travel guide in {destination}. i need you help with planning a daily itinerary for my trip."},
+            {"role": "user", "content": f"I am planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}. Please suggest a daily itinerary."}
+        ]    
+    )
+    
+    return completion.choices[0].message.content
+
 def validate_date(prompt_message):
     while True:
         date_input = input(prompt_message)
@@ -175,7 +189,7 @@ def validate_trip_type(prompt_message):
         else:
             print(f"Invalid trip type. Please choose from {', '.join(valid_types)}.")
 
-def main():
+#def main():
     print("Welcome to the Trip Planner!")
     while True:
         start_date = validate_date("Enter the start date of your trip (YYYY-MM-DD): ")
@@ -211,6 +225,27 @@ def main():
                 print("Invalid choice. Please enter a valid number.")
         except ValueError:
             print("Invalid input. Please enter a number.")
+    
+    daily_plan = generate_daily_plan(chosen_destination['destination'], start_date, end_date)
+    print("Here is your daily plan for the trip:")
+    print(daily_plan)
+    
+def main():
+    print("Welcome to the Trip Planner!")
+    
+    # Set up sample data for testing
+    start_date = datetime.datetime.now() + datetime.timedelta(days=30)
+    end_date = start_date + datetime.timedelta(days=7)
+    budget = 2000
+    trip_type = "beach"  # You can change this to "ski" or "city" for testing different trip types
+    destination = "Miami, USA"  # Change this to any location you want to test
+    
+    print(f"Planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}, with a budget of ${budget} for a {trip_type} trip.")
+    
+    # Generate daily plan for the chosen destination
+    daily_plan = generate_daily_plan(destination, start_date, end_date)
+    print("Here is your daily plan for the trip:")
+    print(daily_plan)
 
 if __name__ == "__main__":
     main()
