@@ -2,6 +2,8 @@ import datetime
 import re
 from openai import OpenAI
 from serpapi import GoogleSearch
+import requests
+
 
 def get_travel_suggestions(start_date, end_date, budget, trip_type):
     api_key = 'sk-proj-SRGCSAzogrcsQIu2kwiZT3BlbkFJp02fsLG6iUdA7G5kEfKg'
@@ -21,7 +23,6 @@ def get_travel_suggestions(start_date, end_date, budget, trip_type):
     print(suggestions)
     
     destinations = parse_destinations(suggestions)
-    print("Parsed Destinations:", destinations)  # Debug: See what destinations were parsed
     return destinations
 
 def parse_destinations(suggestions):
@@ -31,59 +32,50 @@ def parse_destinations(suggestions):
     return [{"city": match[0], "country": match[1], "airport_code": match[2]} for match in matches]
 
 def get_cheapest_flight(origin, destination, start_date, end_date):
-    origin_airport_code = "TLV"  # IATA code for Tel Aviv
     destination_airport_code = destination["airport_code"]
     params = {
         "engine": "google_flights",
-        "q": f"Flights from {origin} to {destination['city']}",
-        "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d"),
-        "departure_id": origin_airport_code,
+        "departure_id": "TLV",
         "arrival_id": destination_airport_code,
         "outbound_date": start_date.strftime("%Y-%m-%d"),
-        "inbound_date": end_date.strftime("%Y-%m-%d"),
+        "return_date": end_date.strftime("%Y-%m-%d"),
+        "currency": "USD",
         "api_key": "0d242c51ae7e9dc9fcf75cebea6130731f580d5e2739bc47b4f6b38812183c52"
     }
-    search = GoogleSearch(params)
-    results = search.get_dict()
-    
-    if "data" not in results or "flight_results" not in results["data"]:
-        print(f"Error: No flight results found for {destination['city']}. Response: {results}")
-        return None
-
     try:
-        flight_data = results['data']['flight_results']
-        cheapest_flight = min(flight_data, key=lambda x: x['price'])
+        response = requests.get("https://serpapi.com/search", params=params)
         
-        return {
-            "destination": f"{destination['city']}, {destination['country']}",
-            "price": cheapest_flight['price'],
-            "airline": cheapest_flight['airline'],
-            "departure_time": cheapest_flight['departure_time'],
-            "arrival_time": cheapest_flight['arrival_time'],
-            "link": cheapest_flight['link']
-        }
-    except (KeyError, ValueError) as e:
-        print(f"Error processing flight data for {destination['city']}: {e}")
-        return None
+        if response.status_code == 200:
+            data = response.json()
+            price_insights = data.get("price_insights", {})
+            if price_insights:
+                lowest_price = price_insights.get("lowest_price")
+                if lowest_price is not None:
+                    return {"destination": f"{destination['city']}, {destination['country']}", "price": lowest_price}
+                else:
+                    return {"city": destination['city'], "country": destination['country'], "price": None}
+            else:
+                return {"city": destination['city'], "country": destination['country'], "price": None}
+        else:
+            print(f"Failed to fetch from SerpAPI. Status code: {response.status_code}, Response body: {response.text}")
+            return {"city": destination['city'], "country": destination['country'], "price": None}
+    
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return {"city": destination['city'], "country": destination['country'], "price": None}
+
 
 def search_flights(destinations, start_date, end_date):
-    flights = []
+    results = []
     for destination in destinations:
         flight = get_cheapest_flight("Tel Aviv", destination, start_date, end_date)
-        if flight:
-            flights.append(flight)
+        if flight['price']:
+            results.append(f"{flight['destination']}: ${flight['price']}")
         else:
-            print(f"No flights found for {destination['city']}.")
+            results.append(f"No flights found for {flight['city']}, {flight['country']}.")
     
-    # Print flight details
-    for flight in flights:
-        print(f"\nCheapest flight to {flight['destination']}:")
-        print(f"  - Price: {flight['price']}")
-        print(f"  - Airline: {flight['airline']}")
-        print(f"  - Departure: {flight['departure_time']}")
-        print(f"  - Arrival: {flight['arrival_time']}")
-        print(f"  - Link: {flight['link']}")
+    for result in results:
+        print(result)
 
 def validate_date(prompt_message):
     while True:
