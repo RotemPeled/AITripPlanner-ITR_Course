@@ -3,6 +3,7 @@ import re
 from openai import OpenAI
 from serpapi import GoogleSearch
 import requests
+import json
 
 
 def get_travel_suggestions(start_date, end_date, budget, trip_type):
@@ -26,10 +27,16 @@ def get_travel_suggestions(start_date, end_date, budget, trip_type):
     return destinations
 
 def parse_destinations(suggestions):
-    # Use regex to find all the destinations, each starting with a number and followed by a dash
     pattern = r'\d+\.\s*(.*?), (.*?) \((.*?)\) -'
     matches = re.findall(pattern, suggestions)
-    return [{"city": match[0], "country": match[1], "airport_code": match[2]} for match in matches]
+    return [
+        {
+            "city": match[0], 
+            "country": match[1], 
+            "airport_code": match[2].split('/')[0]  # Takes the first airport code if multiple are provided
+        } for match in matches
+    ]
+
 
 def get_cheapest_flight(origin, destination, start_date, end_date):
     destination_airport_code = destination["airport_code"]
@@ -40,7 +47,7 @@ def get_cheapest_flight(origin, destination, start_date, end_date):
         "outbound_date": start_date.strftime("%Y-%m-%d"),
         "return_date": end_date.strftime("%Y-%m-%d"),
         "currency": "USD",
-        "api_key": "0d242c51ae7e9dc9fcf75cebea6130731f580d5e2739bc47b4f6b38812183c52"
+        "api_key": "40410806235e0f18253ef31c1d87e51aa12f7bb25cf0c6f9bc0bb946c4a02e8f"
     }
     try:
         response = requests.get("https://serpapi.com/search", params=params)
@@ -63,18 +70,64 @@ def get_cheapest_flight(origin, destination, start_date, end_date):
     except Exception as e:
         print(f"Error: {str(e)}")
         return {"city": destination['city'], "country": destination['country'], "price": None}
-
-
-def search_flights(destinations, start_date, end_date):
-    results = []
-    for destination in destinations:
-        flight = get_cheapest_flight("Tel Aviv", destination, start_date, end_date)
-        if flight['price']:
-            results.append(f"{flight['destination']}: ${flight['price']}")
-        else:
-            results.append(f"No flights found for {flight['city']}, {flight['country']}.")
     
-    for result in results:
+
+def get_most_expensive_affordable_hotel(city, country, budget, start_date, end_date):
+    params = {
+        "engine": "google_hotels",
+        "q": f"hotels in {city}, {country}",
+        "check_in_date": start_date.strftime("%Y-%m-%d"),
+        "check_out_date": end_date.strftime("%Y-%m-%d"),
+        "currency": "USD",
+        "sort_by": "3",  # sort by lowest price
+        "api_key": "40410806235e0f18253ef31c1d87e51aa12f7bb25cf0c6f9bc0bb946c4a02e8f"
+    }
+
+    try:
+        response = requests.get("https://serpapi.com/search", params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            hotels = data.get("properties", [])
+            most_expensive_affordable_hotel = None
+
+            for hotel in hotels:
+                price = hotel.get("total_rate", {}).get("extracted_lowest")
+                if price and price <= budget:
+                    if not most_expensive_affordable_hotel or price > most_expensive_affordable_hotel["price"]:
+                        most_expensive_affordable_hotel = {
+                            "name": hotel["name"],
+                            "price": price,
+                        }
+                elif price and price > budget:
+                    break  # Break out of the loop if price exceeds the budget
+
+            if most_expensive_affordable_hotel:
+                return most_expensive_affordable_hotel
+            else:
+                return {"error": "No affordable hotels found within the budget."}
+        else:
+            return {"error": f"Failed to fetch from SerpAPI. Status code: {response.status_code}, Response body: {response.text}"}
+    except Exception as e:
+        return {"error": f"Error: {str(e)}"}
+    
+    
+def search_flights_and_hotels(destinations, start_date, end_date, budget):
+    flight_and_hotel_results = []
+    for destination in destinations:
+        flight_info = get_cheapest_flight("Tel Aviv", destination, start_date, end_date)
+        if flight_info['price']:
+            remaining_budget = budget - flight_info['price']
+            hotel_info = get_most_expensive_affordable_hotel(destination['city'], destination['country'], remaining_budget, start_date, end_date)
+            if 'name' in hotel_info and 'price' in hotel_info:
+                total_price = flight_info['price'] + hotel_info['price']
+                flight_and_hotel_results.append(f"Destination: {flight_info['destination']}, Flight: ${flight_info['price']}, Hotel: ${hotel_info['price']}")
+            else:
+                flight_and_hotel_results.append(f"Destination: {flight_info['destination']}, Flight: ${flight_info['price']}, Hotel Error: {hotel_info['error']}")
+        else:
+            flight_and_hotel_results.append(f"No flights found for {destination['city']}, {destination['country']}.")
+    
+    for result in flight_and_hotel_results:
         print(result)
 
 def validate_date(prompt_message):
@@ -125,7 +178,7 @@ def main():
     trip_type = validate_trip_type("Enter the type of your trip (ski, beach, city): ")
     
     destinations = get_travel_suggestions(start_date, end_date, budget, trip_type)
-    search_flights(destinations, start_date, end_date)
+    search_flights_and_hotels(destinations, start_date, end_date, budget)
 
 if __name__ == "__main__":
     main()
