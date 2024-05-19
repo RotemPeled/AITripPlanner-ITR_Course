@@ -1,12 +1,52 @@
 import datetime
 import re
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 from openai import OpenAI
-from serpapi import GoogleSearch
 import requests
+
+app = FastAPI()
+
+# Add CORS middleware to allow requests from your Next.js frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Adjust this if needed
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize your API key at the start of your script
 api_key = 'sk-proj-SRGCSAzogrcsQIu2kwiZT3BlbkFJp02fsLG6iUdA7G5kEfKg'
 client = OpenAI(api_key=api_key)
+
+class TripRequest(BaseModel):
+    start_date: datetime.date
+    end_date: datetime.date
+    budget: int
+    trip_type: str
+
+class Destination(BaseModel):
+    city: str
+    country: str
+    airport_code: str
+    summary: str
+
+class TripSuggestion(BaseModel):
+    destination: str
+    total_price: Optional[int]
+    summary: str
+
+class DailyPlanRequest(BaseModel):
+    destination: str
+    start_date: datetime.date
+    end_date: datetime.date
+
+class DailyPlanResponse(BaseModel):
+    daily_plan: str
+    images: List[str]
 
 def get_travel_suggestions(start_date, end_date, budget, trip_type):    
     month = start_date.strftime("%B")    
@@ -23,7 +63,7 @@ def get_travel_suggestions(start_date, end_date, budget, trip_type):
         return destinations
     except Exception as e:
         print(f"Failed to fetch travel suggestions. Error: {str(e)}")
-        return [], "No suggestions due to API failure."
+        return []
 
 def parse_destinations(suggestions):
     pattern = r'\d+\.\s*(.*?), (.*?) \((.*?)\) - (.*)'
@@ -37,86 +77,20 @@ def parse_destinations(suggestions):
         } for match in matches
     ]
 
+# Mock function to replace actual API call
 def get_cheapest_flight(origin, destination, start_date, end_date):
-    return {"destination": f"{destination['city']}, {destination['country']}", "price": 500}
-    destination_airport_code = destination["airport_code"]
-    params = {
-        "engine": "google_flights",
-        "departure_id": "TLV",
-        "arrival_id": destination_airport_code,
-        "outbound_date": start_date.strftime("%Y-%m-%d"),
-        "return_date": end_date.strftime("%Y-%m-%d"),
-        "currency": "USD",
-        "api_key": "40410806235e0f18253ef31c1d87e51aa12f7bb25cf0c6f9bc0bb946c4a02e8f"
+    return {
+        "destination": f"{destination['city']}, {destination['country']}",
+        "price": 500  # Mocked price
     }
-    try:
-        response = requests.get("https://serpapi.com/search", params=params)
-        
-        if response.status_code == 200:
-            data = response.json()
-            price_insights = data.get("price_insights", {})
-            if price_insights:
-                lowest_price = price_insights.get("lowest_price")
-                if lowest_price is not None:
-                    return {"destination": f"{destination['city']}, {destination['country']}", "price": lowest_price}
-                else:
-                    return {"city": destination['city'], "country": destination['country'], "price": None}
-            else:
-                return {"city": destination['city'], "country": destination['country'], "price": None}
-        else:
-            print(f"Failed to fetch from SerpAPI. Status code: {response.status_code}, Response body: {response.text}")
-            return {"city": destination['city'], "country": destination['country'], "price": None}
-    
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return {"city": destination['city'], "country": destination['country'], "price": None}
-    
 
+# Mock function to replace actual API call
 def get_most_expensive_affordable_hotel(city, country, budget, start_date, end_date):
     return {
         "name": "Mock Hotel",
         "price": 300  # Mocked price
     }
 
-    params = {
-        "engine": "google_hotels",
-        "q": f"hotels in {city}, {country}",
-        "check_in_date": start_date.strftime("%Y-%m-%d"),
-        "check_out_date": end_date.strftime("%Y-%m-%d"),
-        "currency": "USD",
-        "sort_by": "3",  # sort by lowest price
-        "api_key": "40410806235e0f18253ef31c1d87e51aa12f7bb25cf0c6f9bc0bb946c4a02e8f"
-    }
-
-    try:
-        response = requests.get("https://serpapi.com/search", params=params)
-
-        if response.status_code == 200:
-            data = response.json()
-            hotels = data.get("properties", [])
-            most_expensive_affordable_hotel = None
-
-            for hotel in hotels:
-                price = hotel.get("total_rate", {}).get("extracted_lowest")
-                if price and price <= budget:
-                    if not most_expensive_affordable_hotel or price > most_expensive_affordable_hotel["price"]:
-                        most_expensive_affordable_hotel = {
-                            "name": hotel["name"],
-                            "price": price,
-                        }
-                elif price and price > budget:
-                    break  # Break out of the loop if price exceeds the budget
-
-            if most_expensive_affordable_hotel:
-                return most_expensive_affordable_hotel
-            else:
-                return {"error": "No affordable hotels found within the budget."}
-        else:
-            return {"error": f"Failed to fetch from SerpAPI. Status code: {response.status_code}, Response body: {response.text}"}
-    except Exception as e:
-        return {"error": f"Error: {str(e)}"}
-    
-    
 def search_flights_and_hotels(destinations, start_date, end_date, budget):
     flight_and_hotel_results = []
     for destination in destinations:
@@ -127,29 +101,29 @@ def search_flights_and_hotels(destinations, start_date, end_date, budget):
             if 'name' in hotel_info and 'price' in hotel_info:
                 total_price = flight_info['price'] + hotel_info['price']
                 flight_and_hotel_results.append({
-                                    "destination": f"{flight_info['destination']}",
-                                    "flight_price": flight_info['price'],
-                                    "hotel_price": hotel_info['price'],
-                                    "total_price": total_price,
-                                    "summary": destination['summary']
+                    "destination": f"{flight_info['destination']}",
+                    "flight_price": flight_info['price'],
+                    "hotel_price": hotel_info['price'],
+                    "total_price": total_price,
+                    "summary": destination['summary']
                 })            
             else:
                 flight_and_hotel_results.append({
-                                    "destination": f"{flight_info['destination']}",
-                                    "flight_price": flight_info['price'],
-                                    "hotel_price": None,
-                                    "total_price": None,
-                                    "hotel_error": hotel_info['error'],
-                                    "summary": destination['summary']
+                    "destination": f"{flight_info['destination']}",
+                    "flight_price": flight_info['price'],
+                    "hotel_price": None,
+                    "total_price": None,
+                    "hotel_error": hotel_info.get('error', 'Hotel not found within budget'),
+                    "summary": destination['summary']
                 })
         else:
             flight_and_hotel_results.append({
-                            "destination": f"{destination['city']}, {destination['country']}",
-                            "flight_price": None,
-                            "hotel_price": None,
-                            "total_price": None,
-                            "flight_error": f"No flights found for {destination['city']}, {destination['country']}",
-                            "summary": destination['summary']
+                "destination": f"{destination['city']}, {destination['country']}",
+                "flight_price": None,
+                "hotel_price": None,
+                "total_price": None,
+                "flight_error": f"No flights found for {destination['city']}, {destination['country']}",
+                "summary": destination['summary']
             })
     return flight_and_hotel_results
 
@@ -158,7 +132,7 @@ def generate_daily_plan(destination, start_date, end_date):
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a travel guide and a creative advisor for visual content."},
-            {"role": "user", "content": f"I am planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}. Please suggest a detailed daily itinerary. At the end provide exactly 4 descriptions that could visually summarize the entire trip. make the description clear and detailed. please use this format for the  visually summariz:  visually summariz:\n1. A picture of the Eiffel Tower at sunset, symbolizing the iconic landmark of Paris.\n2. A snapshot of colorful flowers in full bloom at the gardens of Versailles, representing the beauty of French landscapes.\n3. An image of the Seine River with historic bridges in the background, showcasing the romantic charm of Paris.\n4. A shot of street artists painting in Montmartre, capturing the artistic spirit and bohemian vibe of the neighborhood."}
+            {"role": "user", "content": f"I am planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}. Please suggest a detailed daily itinerary. At the end provide exactly 4 descriptions that could visually summarize the entire trip. make the description clear and detailed. please use this format for the 4 descriptions: visually summarize: \n1. A picture of the Eiffel Tower at sunset, symbolizing the iconic landmark of Paris.\n2. A snapshot of colorful flowers in full bloom at the gardens of Versailles, representing the beauty of French landscapes.\n3. An image of the Seine River with historic bridges in the background, showcasing the romantic charm of Paris.\n4. A shot of street artists painting in Montmartre, capturing the artistic spirit and bohemian vibe of the neighborhood."}
         ]
     )
 
@@ -176,7 +150,6 @@ def generate_daily_plan(destination, start_date, end_date):
         image_descriptions = []
 
     return plan_content, image_descriptions
-
 
 def extract_image_descriptions(image_descriptions_content):
     descriptions = []
@@ -216,88 +189,27 @@ def generate_images(descriptions):
             images.append(None)
     return images
 
+@app.post("/get-travel-suggestions/", response_model=List[TripSuggestion])
+def get_suggestions(request: TripRequest):
+    destinations = get_travel_suggestions(request.start_date, request.end_date, request.budget, request.trip_type)
+    flight_and_hotel_results = search_flights_and_hotels(destinations, request.start_date, request.end_date, request.budget)
+    return [
+        TripSuggestion(
+            destination=result['destination'],
+            total_price=result.get('total_price'),
+            summary=result['summary']
+        ) for result in flight_and_hotel_results
+    ]
 
-def validate_date(prompt_message):
-    while True:
-        date_input = input(prompt_message)
-        try:
-            valid_date = datetime.datetime.strptime(date_input, "%Y-%m-%d")
-            if valid_date < datetime.datetime.now():
-                print("Please enter a future date.")
-            else:
-                return valid_date
-        except ValueError:
-            print("Invalid date format. Please enter the date in YYYY-MM-DD format.")
-
-def validate_budget(prompt_message):
-    while True:
-        budget_input = input(prompt_message)
-        try:
-            budget = int(budget_input)
-            if budget > 0:
-                return budget
-            else:
-                print("Please enter a positive number for the budget.")
-        except ValueError:
-            print("Invalid budget. Please enter a numeric value.")
-
-def validate_trip_type(prompt_message):
-    valid_types = ["ski", "beach", "city"]
-    while True:
-        trip_type = input(prompt_message).lower()
-        if trip_type in valid_types:
-            return trip_type
-        else:
-            print(f"Invalid trip type. Please choose from {', '.join(valid_types)}.")
-
-def main():
-    print("Welcome to the Trip Planner!")
-    while True:
-        start_date = validate_date("Enter the start date of your trip (YYYY-MM-DD): ")
-        end_date = validate_date("Enter the end date of your trip (YYYY-MM-DD): ")
-        if end_date <= start_date:
-            print("End date must be after start date. Please enter the dates again.")
-            continue
-        else:
-            break
-    
-    budget = validate_budget("Enter your total budget for the trip in USD: ")
-    trip_type = validate_trip_type("Enter the type of your trip (ski, beach, city): ")
-    
-    destinations = get_travel_suggestions(start_date, end_date, budget, trip_type)
-
-    flight_and_hotel_results = search_flights_and_hotels(destinations, start_date, end_date, budget)
-    
-    # Display the collected information
-    print("Here are the options for your trip:")
-    for index, result in enumerate(flight_and_hotel_results, start=1):
-        print(f"{index}. Destination: {result['destination']}, Total Price: ${result['total_price'] if result['total_price'] else 'N/A'}")
-        print(f"{result['summary']}")
-        
-    # Allow the user to choose a destination
-    while True:
-        choice = input("Please enter the number of the destination you choose: ")
-        try:
-            choice_index = int(choice)
-            if 1 <= choice_index <= len(flight_and_hotel_results):
-                chosen_destination = flight_and_hotel_results[choice_index - 1]
-                print(f"Chosen Destination: {chosen_destination['destination']}, Total Price: ${chosen_destination['total_price'] if chosen_destination['total_price'] else 'N/A'}")
-                break
-            else:
-                print("Invalid choice. Please enter a valid number.")
-        except ValueError:
-            print("Invalid input. Please enter a number.")
-    
-    daily_plan, image_descriptions = generate_daily_plan(chosen_destination['destination'], start_date, end_date)
-    print("Here is your daily plan for the trip:")
-    print(daily_plan)
-    
+@app.post("/generate-daily-plan/", response_model=DailyPlanResponse)
+def generate_plan(request: DailyPlanRequest):
+    plan_content, image_descriptions = generate_daily_plan(request.destination, request.start_date, request.end_date)
     images = generate_images(image_descriptions)
-    for img in images:
-        if img:
-            print(img)
-        else:
-            print("No image generated for this prompt.")
-     
+    return DailyPlanResponse(
+        daily_plan=plan_content,
+        images=images
+    )
+
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

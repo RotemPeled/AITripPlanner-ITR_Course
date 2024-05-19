@@ -1,0 +1,126 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6rem;
+  min-height: 100vh;
+  background-color: #f7fafc; /* Tailwind's bg-gray-100 equivalent */
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.85rem;
+  max-width: 800px; /* Adjusted for better centering */
+  width: 100%;
+  z-index: 2;
+}
+
+.formContainer {
+  width: 100%;
+  max-width: 400px; /* Form width */
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow for depth */
+}
+
+.formLabel {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #4a5568; /* Tailwind's text-gray-700 equivalent */
+}
+
+.formInput {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #cbd5e0; /* Tailwind's border-gray-300 equivalent */
+  border-radius: 8px;
+}
+
+.formButton {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #4299e1; /* Tailwind's bg-blue-500 equivalent */
+  color: white;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.formButton:hover {
+  background-color: #3182ce; /* Tailwind's bg-blue-600 equivalent */
+}
+
+.suggestionsList {
+  list-style: none;
+  padding: 0;
+}
+
+.suggestionItem {
+  background-color: #edf2f7; /* Tailwind's bg-gray-100 equivalent */
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.suggestionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.suggestionSummary {
+  margin: 0.5rem 0;
+}
+
+.suggestionButton {
+  padding: 0.5rem 1rem;
+  background-color: #48bb78; /* Tailwind's bg-green-500 equivalent */
+  color: white;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.suggestionButton:hover {
+  background-color: #38a169; /* Tailwind's bg-green-600 equivalent */
+}
+
+.dailyPlanContainer {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow for depth */
+  width: 100%;
+  max-width: 800px;
+}
+
+.dailyPlanTitle {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.dailyPlanText p {
+  margin-bottom: 1.5rem; /* Add space between each day's plan */
+}
+
+.imagesContainer {
+  display: flex;
+  gap: 1rem; /* Add space between images */
+  flex-wrap: nowrap;
+  overflow-x: auto; /* Allow scrolling if needed */
+}
+
+.dailyPlanImage {
+  width: 100%;
+  max-width: 200px; /* Ensure images are not too large */
+  border-radius: 8px;
+}
