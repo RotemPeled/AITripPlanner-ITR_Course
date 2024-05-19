@@ -10,31 +10,35 @@ client = OpenAI(api_key=api_key)
 
 def get_travel_suggestions(start_date, end_date, budget, trip_type):    
     month = start_date.strftime("%B")    
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a travel advisor."},
-            {"role": "user", "content": f"Given a budget of ${budget} for a {trip_type} trip in the month of {month}, suggest 5 destinations worldwide. Please provide the response in the following format:\n1. Destination, Country (Airport Code) - Description\n2. Destination, Country (Airport Code) - Description\n3. Destination, Country (Airport Code) - Description\n4. Destination, Country (Airport Code) - Description\n5. Destination, Country (Airport Code) - Description"}
-        ]    
-    )
-
-    suggestions = completion.choices[0].message.content    
-    destinations = parse_destinations(suggestions)
-    return destinations , suggestions
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a travel advisor."},
+                {"role": "user", "content": f"Given a budget of ${budget} for a {trip_type} trip in the month of {month}, suggest 5 destinations worldwide. Please provide the response in the following format:\n1. Destination, Country (Airport Code) - Description\n2. Destination, Country (Airport Code) - Description\n3. Destination, Country (Airport Code) - Description\n4. Destination, Country (Airport Code) - Description\n5. Destination, Country (Airport Code) - Description"}
+            ]    
+        )
+        suggestions = completion.choices[0].message.content    
+        destinations = parse_destinations(suggestions)
+        return destinations
+    except Exception as e:
+        print(f"Failed to fetch travel suggestions. Error: {str(e)}")
+        return [], "No suggestions due to API failure."
 
 def parse_destinations(suggestions):
-    pattern = r'\d+\.\s*(.*?), (.*?) \((.*?)\) -'
+    pattern = r'\d+\.\s*(.*?), (.*?) \((.*?)\) - (.*)'
     matches = re.findall(pattern, suggestions)
     return [
         {
             "city": match[0], 
             "country": match[1], 
-            "airport_code": match[2].split('/')[0]  # Takes the first airport code if multiple are provided
+            "airport_code": match[2].split('/')[0],  # Takes the first airport code if multiple are provided
+            "summary": match[3]
         } for match in matches
     ]
 
-
 def get_cheapest_flight(origin, destination, start_date, end_date):
+    return {"destination": f"{destination['city']}, {destination['country']}", "price": 500}
     destination_airport_code = destination["airport_code"]
     params = {
         "engine": "google_flights",
@@ -69,6 +73,11 @@ def get_cheapest_flight(origin, destination, start_date, end_date):
     
 
 def get_most_expensive_affordable_hotel(city, country, budget, start_date, end_date):
+    return {
+        "name": "Mock Hotel",
+        "price": 300  # Mocked price
+    }
+
     params = {
         "engine": "google_hotels",
         "q": f"hotels in {city}, {country}",
@@ -121,7 +130,8 @@ def search_flights_and_hotels(destinations, start_date, end_date, budget):
                                     "destination": f"{flight_info['destination']}",
                                     "flight_price": flight_info['price'],
                                     "hotel_price": hotel_info['price'],
-                                    "total_price": total_price
+                                    "total_price": total_price,
+                                    "summary": destination['summary']
                 })            
             else:
                 flight_and_hotel_results.append({
@@ -129,7 +139,8 @@ def search_flights_and_hotels(destinations, start_date, end_date, budget):
                                     "flight_price": flight_info['price'],
                                     "hotel_price": None,
                                     "total_price": None,
-                                    "hotel_error": hotel_info['error']
+                                    "hotel_error": hotel_info['error'],
+                                    "summary": destination['summary']
                 })
         else:
             flight_and_hotel_results.append({
@@ -137,7 +148,8 @@ def search_flights_and_hotels(destinations, start_date, end_date, budget):
                             "flight_price": None,
                             "hotel_price": None,
                             "total_price": None,
-                            "flight_error": f"No flights found for {destination['city']}, {destination['country']}"
+                            "flight_error": f"No flights found for {destination['city']}, {destination['country']}",
+                            "summary": destination['summary']
             })
     return flight_and_hotel_results
 
@@ -238,7 +250,7 @@ def validate_trip_type(prompt_message):
         else:
             print(f"Invalid trip type. Please choose from {', '.join(valid_types)}.")
 
-#def main():
+def main():
     print("Welcome to the Trip Planner!")
     while True:
         start_date = validate_date("Enter the start date of your trip (YYYY-MM-DD): ")
@@ -252,7 +264,7 @@ def validate_trip_type(prompt_message):
     budget = validate_budget("Enter your total budget for the trip in USD: ")
     trip_type = validate_trip_type("Enter the type of your trip (ski, beach, city): ")
     
-    destinations, suggestions = get_travel_suggestions(start_date, end_date, budget, trip_type)
+    destinations = get_travel_suggestions(start_date, end_date, budget, trip_type)
 
     flight_and_hotel_results = search_flights_and_hotels(destinations, start_date, end_date, budget)
     
@@ -260,7 +272,8 @@ def validate_trip_type(prompt_message):
     print("Here are the options for your trip:")
     for index, result in enumerate(flight_and_hotel_results, start=1):
         print(f"{index}. Destination: {result['destination']}, Total Price: ${result['total_price'] if result['total_price'] else 'N/A'}")
-
+        print(f"{result['summary']}")
+        
     # Allow the user to choose a destination
     while True:
         choice = input("Please enter the number of the destination you choose: ")
@@ -275,30 +288,9 @@ def validate_trip_type(prompt_message):
         except ValueError:
             print("Invalid input. Please enter a number.")
     
-    daily_plan = generate_daily_plan(chosen_destination['destination'], start_date, end_date)
+    daily_plan, image_descriptions = generate_daily_plan(chosen_destination['destination'], start_date, end_date)
     print("Here is your daily plan for the trip:")
     print(daily_plan)
-     
-def main():
-    print("Welcome to the Trip Planner!")
-    
-    # Set up sample data for testing
-    start_date = datetime.datetime.now() + datetime.timedelta(days=30)
-    end_date = start_date + datetime.timedelta(days=4)
-    budget = 2000
-    trip_type = "city"  # You can change this to "ski" or "city" for testing different trip types
-    destination = "Paris, France"  # Change this to any location you want to test
-    
-    print(f"Planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}, with a budget of ${budget} for a {trip_type} trip.")
-    
-    # Generate daily plan for the chosen destination
-    daily_plan , image_descriptions = generate_daily_plan(destination, start_date, end_date)
-    print("Here is your daily plan for the trip:")
-    print(daily_plan)
-    
-    print("Image descriptions suggested for generation:")
-    for description in image_descriptions:
-        print(description)
     
     images = generate_images(image_descriptions)
     for img in images:
@@ -306,6 +298,6 @@ def main():
             print(img)
         else:
             print("No image generated for this prompt.")
-
+     
 if __name__ == "__main__":
     main()
