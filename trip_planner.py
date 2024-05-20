@@ -36,7 +36,9 @@ class Destination(BaseModel):
 
 class TripSuggestion(BaseModel):
     destination: str
-    total_price: Optional[int]
+    flight_price: Optional[int] = None
+    hotel_price: Optional[int] = None
+    total_price: Optional[int]    
     summary: str
 
 class DailyPlanRequest(BaseModel):
@@ -46,8 +48,8 @@ class DailyPlanRequest(BaseModel):
 
 class DailyPlanResponse(BaseModel):
     daily_plan: str
-    images: List[str]
-
+    images: List[Optional[str]] 
+    
 def get_travel_suggestions(start_date, end_date, budget, trip_type):    
     month = start_date.strftime("%B")    
     try:
@@ -55,7 +57,7 @@ def get_travel_suggestions(start_date, end_date, budget, trip_type):
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a travel advisor."},
-                {"role": "user", "content": f"Given a budget of ${budget} for a {trip_type} trip in the month of {month}, suggest 5 destinations worldwide. Please provide the response in the following format:\n1. Destination, Country (Airport Code) - Description\n2. Destination, Country (Airport Code) - Description\n3. Destination, Country (Airport Code) - Description\n4. Destination, Country (Airport Code) - Description\n5. Destination, Country (Airport Code) - Description"}
+                {"role": "user", "content": f"Given a budget of ${budget} for a {trip_type} trip in the month of {month}, suggest a destination worldwide. Please provide the response in the following format:\n1. Destination, Country (Airport Code) - Description"}
             ]    
         )
         suggestions = completion.choices[0].message.content    
@@ -77,20 +79,79 @@ def parse_destinations(suggestions):
         } for match in matches
     ]
 
-# Mock function to replace actual API call
 def get_cheapest_flight(origin, destination, start_date, end_date):
-    return {
-        "destination": f"{destination['city']}, {destination['country']}",
-        "price": 500  # Mocked price
+    destination_airport_code = destination["airport_code"]
+    params = {
+        "engine": "google_flights",
+        "departure_id": "TLV",
+        "arrival_id": destination_airport_code,
+        "outbound_date": start_date.strftime("%Y-%m-%d"),
+        "return_date": end_date.strftime("%Y-%m-%d"),
+        "currency": "USD",
+        "api_key": "a9ad98a9df6cd4d74a203c3dc95bd34899c999655d5a667bf8808efcd8ea04e5"
     }
+    try:
+        response = requests.get("https://serpapi.com/search", params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            price_insights = data.get("price_insights", {})
+            if price_insights:
+                lowest_price = price_insights.get("lowest_price")
+                if lowest_price is not None:
+                    return {"destination": f"{destination['city']}, {destination['country']}", "price": lowest_price}
+                else:
+                    return {"city": destination['city'], "country": destination['country'], "price": None}
+            else:
+                return {"city": destination['city'], "country": destination['country'], "price": None}
+        else:
+            print(f"Failed to fetch from SerpAPI. Status code: {response.status_code}, Response body: {response.text}")
+            return {"city": destination['city'], "country": destination['country'], "price": None}
+    
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return {"city": destination['city'], "country": destination['country'], "price": None}
 
-# Mock function to replace actual API call
 def get_most_expensive_affordable_hotel(city, country, budget, start_date, end_date):
-    return {
-        "name": "Mock Hotel",
-        "price": 300  # Mocked price
+    params = {
+        "engine": "google_hotels",
+        "q": f"hotels in {city}, {country}",
+        "check_in_date": start_date.strftime("%Y-%m-%d"),
+        "check_out_date": end_date.strftime("%Y-%m-%d"),
+        "currency": "USD",
+        "sort_by": "3",  # sort by lowest price
+        "api_key": "a9ad98a9df6cd4d74a203c3dc95bd34899c999655d5a667bf8808efcd8ea04e5"
     }
 
+    try:
+        response = requests.get("https://serpapi.com/search", params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            hotels = data.get("properties", [])
+            most_expensive_affordable_hotel = None
+
+            for hotel in hotels:
+                price = hotel.get("total_rate", {}).get("extracted_lowest")
+                if price and price <= budget:
+                    if not most_expensive_affordable_hotel or price > most_expensive_affordable_hotel["price"]:
+                        most_expensive_affordable_hotel = {
+                            "name": hotel["name"],
+                            "price": price,
+                        }
+                elif price and price > budget:
+                    break  # Break out of the loop if price exceeds the budget
+
+            if most_expensive_affordable_hotel:
+                return most_expensive_affordable_hotel
+            else:
+                return {"error": "No affordable hotels found within the budget."}
+        else:
+            return {"error": f"Failed to fetch from SerpAPI. Status code: {response.status_code}, Response body: {response.text}"}
+    except Exception as e:
+        return {"error": f"Error: {str(e)}"}
+    
+    
 def search_flights_and_hotels(destinations, start_date, end_date, budget):
     flight_and_hotel_results = []
     for destination in destinations:
@@ -139,8 +200,11 @@ def generate_daily_plan(destination, start_date, end_date):
     # Full content of the response
     full_content = completion.choices[0].message.content
 
+    # Remove any asterisks from the content
+    cleaned_content = re.sub(r'\*+', '', full_content)
+
     # Use regex to split the content at "visually summarize:" (case-insensitive)
-    parts = re.split(r'(?i)visually summarize:', full_content, 1)  # '(?i)' is a regex flag for case-insensitive matching
+    parts = re.split(r'(?i)visually summarize:', cleaned_content, 1)  # '(?i)' is a regex flag for case-insensitive matching
     if len(parts) > 1:
         plan_content = parts[0].strip()
         image_descriptions_content = parts[1].strip()
@@ -161,12 +225,25 @@ def extract_image_descriptions(image_descriptions_content):
             descriptions.append(description)
     return descriptions
 
-def generate_images(descriptions):
+def generate_images(descriptions, destination):
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     images = []
+    
+    # Default descriptions to use if needed
+    default_descriptions = [
+        f"A famous landmark in {destination}, showcasing its iconic architecture.",
+        f"A beautiful natural scene in {destination}, representing its scenic landscapes.",
+        f"A snapshot of local culture in {destination}, highlighting traditional activities or events.",
+        f"A depiction of daily life in {destination}, capturing the essence of the local community."
+    ]
+
+    # Add default descriptions if there are fewer than 4
+    while len(descriptions) < 4:
+        descriptions.append(default_descriptions[len(descriptions)])
+
     for description in descriptions:
         response = requests.post(
             "https://api.openai.com/v1/images/generations",
@@ -183,10 +260,10 @@ def generate_images(descriptions):
                 images.append(data['data'][0]['url'])
             except KeyError:
                 print("No URL found in the response:", data)
-                images.append(None)
+                images.append('URL not available') 
         else:
             print(f"Failed to generate image with status code {response.status_code}: {response.text}")
-            images.append(None)
+            images.append('URL not available')  
     return images
 
 @app.post("/get-travel-suggestions/", response_model=List[TripSuggestion])
@@ -196,6 +273,8 @@ def get_suggestions(request: TripRequest):
     return [
         TripSuggestion(
             destination=result['destination'],
+            flight_price=result.get('flight_price'),
+            hotel_price=result.get('hotel_price'),
             total_price=result.get('total_price'),
             summary=result['summary']
         ) for result in flight_and_hotel_results
@@ -204,7 +283,7 @@ def get_suggestions(request: TripRequest):
 @app.post("/generate-daily-plan/", response_model=DailyPlanResponse)
 def generate_plan(request: DailyPlanRequest):
     plan_content, image_descriptions = generate_daily_plan(request.destination, request.start_date, request.end_date)
-    images = generate_images(image_descriptions)
+    images = generate_images(image_descriptions, request.destination)
     return DailyPlanResponse(
         daily_plan=plan_content,
         images=images

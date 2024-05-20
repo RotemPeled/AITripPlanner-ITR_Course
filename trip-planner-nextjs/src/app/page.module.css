@@ -1,126 +1,128 @@
-.main {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6rem;
-  min-height: 100vh;
-  background-color: #f7fafc; /* Tailwind's bg-gray-100 equivalent */
-}
-
-.description {
+/* General page styles */
+.pageContainer {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  font-size: 0.85rem;
-  max-width: 800px; /* Adjusted for better centering */
-  width: 100%;
-  z-index: 2;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Arial', sans-serif;
+  height: auto; /* Ensure the container grows with content */
 }
 
-.formContainer {
-  width: 100%;
-  max-width: 400px; /* Form width */
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow for depth */
+.title {
+  color: #333;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1.5em; /* Increase font size for better visibility */
 }
 
-.formLabel {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #4a5568; /* Tailwind's text-gray-700 equivalent */
+.inputField, .actionButton {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
 }
 
-.formInput {
-  width: 100%;
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  border: 1px solid #cbd5e0; /* Tailwind's border-gray-300 equivalent */
-  border-radius: 8px;
-}
-
-.formButton {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: #4299e1; /* Tailwind's bg-blue-500 equivalent */
+.actionButton {
+  background-color: #4CAF50;
   color: white;
-  font-weight: bold;
-  border-radius: 8px;
+  border: none;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.3s ease;
 }
 
-.formButton:hover {
-  background-color: #3182ce; /* Tailwind's bg-blue-600 equivalent */
+.actionButton:hover {
+  background-color: #45a049;
 }
 
-.suggestionsList {
-  list-style: none;
+.actionButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.loadingMessage, .errorMessage {
+  color: #666;
+  text-align: center;
+}
+
+/* Destination list styles */
+.destinationsList {
+  list-style-type: none;
   padding: 0;
 }
 
-.suggestionItem {
-  background-color: #edf2f7; /* Tailwind's bg-gray-100 equivalent */
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+.destinationItem {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 5px;
 }
 
-.suggestionTitle {
-  font-size: 1.25rem;
-  font-weight: 600;
+.destinationHeader {
+  font-size: 1.2em;
+  color: #000;
 }
 
-.suggestionSummary {
-  margin: 0.5rem 0;
+.destinationSummary {
+  font-size: 0.9em;
+  color: #555;
 }
 
-.suggestionButton {
-  padding: 0.5rem 1rem;
-  background-color: #48bb78; /* Tailwind's bg-green-500 equivalent */
-  color: white;
-  font-weight: bold;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.suggestionButton:hover {
-  background-color: #38a169; /* Tailwind's bg-green-600 equivalent */
-}
-
-.dailyPlanContainer {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow for depth */
-  width: 100%;
-  max-width: 800px;
-}
-
-.dailyPlanTitle {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-}
-
-.dailyPlanText p {
-  margin-bottom: 1.5rem; /* Add space between each day's plan */
-}
-
-.imagesContainer {
+/* Price Display Styles */
+.priceContainer {
   display: flex;
-  gap: 1rem; /* Add space between images */
-  flex-wrap: nowrap;
-  overflow-x: auto; /* Allow scrolling if needed */
+  justify-content: space-around;
+  width: 100%;
+  margin: 20px 0;
+}
+
+.priceBox {
+  padding: 10px 20px;
+  background-color: #e3e8e4; /* Soft green background */
+  border: 1px solid #232823; /* Light green border */
+  border-radius: 5px;
+  font-size: 1em;
+  font-weight: bold;
+  color: #333;
+  width: 30%;
+  text-align: center;
+}
+
+/* Daily Plan styles */
+.dailyPlanContainer {
+  margin-top: 30px;
+  text-align: left;
+  width: 100%;
+}
+
+.dailyPlanImagesContainer {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
 }
 
 .dailyPlanImage {
-  width: 100%;
-  max-width: 200px; /* Ensure images are not too large */
-  border-radius: 8px;
+  flex-grow: 1;
+  max-width: 24%;
+  height: auto;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+
+@media (min-width: 600px) {
+  .inputField, .actionButton {
+    width: auto;
+    display: block;
+    margin-right: 10px;
+  }
+
+  .actionButton {
+    width: auto;
+    padding: 10px 20px;
+  }
 }
