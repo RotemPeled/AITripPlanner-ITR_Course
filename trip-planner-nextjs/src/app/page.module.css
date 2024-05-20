@@ -4,11 +4,11 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  width: 100%;
   max-width: 960px;
   margin: 0 auto;
   padding: 20px;
-  font-family: 'Arial', sans-serif;
-  height: auto; /* Ensure the container grows with content */
+  background-color: #ffffff; /* White background for the main container */
 }
 
 .title {
@@ -18,19 +18,50 @@
   font-size: 1.5em; /* Increase font size for better visibility */
 }
 
-.inputField, .actionButton {
+.inputWrapper {
   width: 100%;
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.inputField {
+  flex: 1;
   padding: 10px;
   margin-top: 10px;
-  margin-bottom: 20px;
   border: 1px solid #ccc;
   border-radius: 5px;
 }
 
+.errorMessage {
+  position: absolute;
+  right: -250px; /* Adjust the distance from the input field */
+  top: 50%;
+  transform: translateY(-50%);
+  color: red;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.noSpin::-webkit-outer-spin-button,
+.noSpin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.noSpin {
+  -moz-appearance: textfield;
+}
+
 .actionButton {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 5px;
   background-color: #4CAF50;
   color: white;
-  border: none;
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
@@ -44,7 +75,7 @@
   cursor: not-allowed;
 }
 
-.loadingMessage, .errorMessage {
+.loadingMessage {
   color: #666;
   text-align: center;
 }
@@ -83,8 +114,8 @@
 
 .priceBox {
   padding: 10px 20px;
-  background-color: #e3e8e4; /* Soft green background */
-  border: 1px solid #232823; /* Light green border */
+  background-color: #e7f5e9; /* Soft green background */
+  border: 1px solid #b2d8b5; /* Light green border */
   border-radius: 5px;
   font-size: 1em;
   font-weight: bold;
@@ -98,8 +129,21 @@
   margin-top: 30px;
   text-align: left;
   width: 100%;
+  background-color: #fff; /* White background for better contrast */
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.dailyPlanDay {
+  margin-bottom: 20px;
+  padding: 10px;
+  border-left: 4px solid #4CAF50; /* Green bar for each day */
+  background-color: #f9f9f9;
+  border-radius: 5px;
+}
+
+/* Daily Plan images */
 .dailyPlanImagesContainer {
   display: flex;
   justify-content: space-around;

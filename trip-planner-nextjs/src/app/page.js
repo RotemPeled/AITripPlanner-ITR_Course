@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './page.module.css';  // Import the CSS module
 
 function HomePage() {
@@ -14,23 +14,80 @@ function HomePage() {
   const [dailyPlan, setDailyPlan] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // State for form validation errors
+  const [startDateError, setStartDateError] = useState('');
+  const [endDateError, setEndDateError] = useState('');
+  const [budgetError, setBudgetError] = useState('');
+  const [tripTypeError, setTripTypeError] = useState('');
+
+  const validateStartDate = (date) => {
+    const selectedDate = new Date(date);
+    const today = new Date();
+    if (selectedDate < today) {
+      setStartDateError('Start date has expired');
+    } else {
+      setStartDateError('');
+    }
+  };
+
+  const validateEndDate = (start, end) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (endDate < startDate) {
+      setEndDateError('End date cannot be before start date');
+    } else {
+      setEndDateError('');
+    }
+  };
+
+  const validateBudget = (amount) => {
+    if (amount <= 0) {
+      setBudgetError('Budget must be greater than 0');
+    } else {
+      setBudgetError('');
+    }
+  };
+
+  const validateTripType = (type) => {
+    if (!type) {
+      setTripTypeError('Please select a trip type');
+    } else {
+      setTripTypeError('');
+    }
+  };
+
+  // useEffect hooks to validate on change
+  useEffect(() => {
+    if (startDate) validateStartDate(startDate);
+    if (endDate) validateEndDate(startDate, endDate);
+    if (budget) validateBudget(budget);
+    if (tripType) validateTripType(tripType);
+  }, [startDate, endDate, budget, tripType]);
+
   const handleSearch = async () => {
-    setLoading(true);
-    const response = await fetch('http://localhost:8000/get-travel-suggestions/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        start_date: startDate,
-        end_date: endDate,
-        budget: budget,
-        trip_type: tripType
-      })
-    });
-    const data = await response.json();
-    setSuggestions(data);
-    setLoading(false);
+    if (!startDate) setStartDateError('Please select a start date');
+    if (!endDate) setEndDateError('Please select an end date');
+    if (!budget) setBudgetError('Please enter a budget');
+    if (!tripType) setTripTypeError('Please select a trip type');
+
+    if (!startDateError && !endDateError && !budgetError && !tripTypeError && startDate && endDate && budget && tripType) {
+      setLoading(true);
+      const response = await fetch('http://localhost:8000/get-travel-suggestions/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          start_date: startDate,
+          end_date: endDate,
+          budget: budget,
+          trip_type: tripType
+        })
+      });
+      const data = await response.json();
+      setSuggestions(data);
+      setLoading(false);
+    }
   };
 
   const handleSelectDestination = async (suggestion) => {
@@ -56,19 +113,44 @@ function HomePage() {
 
   return (
     <div className={styles.pageContainer}>
+      <style jsx global>{`
+        html, body {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          background-color: #f0f0f0; /* Light gray background for the entire viewport */
+          font-family: 'Arial', sans-serif;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+      `}</style>
       {!selectedDestination && !suggestions.length && (
         <div className={styles.inputContainer}>
           <h1 className={styles.title}>Plan Your Trip</h1>
-          <input className={styles.inputField} type="date" value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="Start Date" />
-          <input className={styles.inputField} type="date" value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="End Date" />
-          <input className={styles.inputField} type="number" value={budget} onChange={e => setBudget(e.target.value)} placeholder="Budget in USD" />
-          <select className={styles.inputField} value={tripType} onChange={e => setTripType(e.target.value)}>
-            <option value="">Select Trip Type</option>
-            <option value="ski">Ski</option>
-            <option value="beach">Beach</option>
-            <option value="city">City</option>
-          </select>
-          <button className={styles.actionButton} onClick={handleSearch} disabled={loading}>Find Destinations</button>
+          <div className={styles.inputWrapper}>
+            <input className={styles.inputField} type="date" value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="Start Date" />
+            {startDateError && <span className={styles.errorMessage}>{startDateError}</span>}
+          </div>
+          <div className={styles.inputWrapper}>
+            <input className={styles.inputField} type="date" value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="End Date" />
+            {endDateError && <span className={styles.errorMessage}>{endDateError}</span>}
+          </div>
+          <div className={styles.inputWrapper}>
+            <input className={`${styles.inputField} ${styles.noSpin}`} type="number" value={budget} onChange={e => setBudget(e.target.value)} placeholder="Budget in USD" />
+            {budgetError && <span className={styles.errorMessage}>{budgetError}</span>}
+          </div>
+          <div className={styles.inputWrapper}>
+            <select className={styles.inputField} value={tripType} onChange={e => setTripType(e.target.value)}>
+              <option value="">Select Trip Type</option>
+              <option value="ski">Ski</option>
+              <option value="beach">Beach</option>
+              <option value="city">City</option>
+            </select>
+            {tripTypeError && <span className={styles.errorMessage}>{tripTypeError}</span>}
+          </div>
+          <button className={styles.actionButton} onClick={handleSearch} disabled={loading || startDateError || endDateError || budgetError || tripTypeError}>Find Destinations</button>
         </div>
       )}
 
@@ -99,8 +181,12 @@ function HomePage() {
             <div className={styles.priceBox}>Total Price: ${parseInt(selectedFlightPrice) + parseInt(selectedHotelPrice)}</div>
           </div>
           <div className={styles.dailyPlanContainer}>
-            {dailyPlan.daily_plan.split('\n').map((day, index) => (
-              <p key={index}>{day}</p>
+            {dailyPlan.daily_plan.split('\n\n').map((day, index) => (
+              <div key={index} className={styles.dailyPlanDay}>
+                {day.split('\n').map((line, lineIndex) => (
+                  <p key={lineIndex}>{line}</p>
+                ))}
+              </div>
             ))}
           </div>
           <div className={styles.dailyPlanImagesContainer}>

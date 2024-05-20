@@ -57,7 +57,7 @@ def get_travel_suggestions(start_date, end_date, budget, trip_type):
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a travel advisor."},
-                {"role": "user", "content": f"Given a budget of ${budget} for a {trip_type} trip in the month of {month}, suggest a destination worldwide. Please provide the response in the following format:\n1. Destination, Country (Airport Code) - Description"}
+                {"role": "user", "content": f"Given a budget of ${budget} for a {trip_type} trip in the month of {month}, suggest 5 destinations worldwide. Please provide the response in the following format:\n1. Destination, Country (Airport Code) - Description\n2. Destination, Country (Airport Code) - Description\n3. Destination, Country (Airport Code) - Description\n4. Destination, Country (Airport Code) - Description\n5. Destination, Country (Airport Code) - Description"}
             ]    
         )
         suggestions = completion.choices[0].message.content    
