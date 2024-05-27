@@ -164,15 +164,14 @@ function HomePage() {
               <li key={index} className={styles.destinationItem}>
                 <h3 className={styles.destinationHeader}>{suggestion.destination}</h3>
                 <p className={styles.destinationSummary}>Total Cost: ${suggestion.total_price}</p>
-                <p className={styles.destinationSummary}>Summary: {suggestion.summary}</p>
+                <p className={styles.destinationSummary}> {suggestion.summary}</p>
                 <button className={styles.actionButton} onClick={() => handleSelectDestination(suggestion)}>Select This Destination</button>
               </li>
             ))}
           </ul>
         </div>
       )}
-
-      {selectedDestination && dailyPlan && (
+      {selectedDestination && (
         <div>
           <h2 className={styles.title}>Your Trip to {selectedDestination}</h2>
           <div className={styles.priceContainer}>
@@ -180,20 +179,26 @@ function HomePage() {
             <div className={styles.priceBox}>Hotel Price: ${selectedHotelPrice}</div>
             <div className={styles.priceBox}>Total Price: ${parseInt(selectedFlightPrice) + parseInt(selectedHotelPrice)}</div>
           </div>
-          <div className={styles.dailyPlanContainer}>
-            {dailyPlan.daily_plan.split('\n\n').map((day, index) => (
-              <div key={index} className={styles.dailyPlanDay}>
-                {day.split('\n').map((line, lineIndex) => (
-                  <p key={lineIndex}>{line}</p>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className={styles.dailyPlanImagesContainer}>
-            {dailyPlan.images.map((image, index) => (
-              image ? <img key={index} src={image} alt={`Visual representation ${index + 1}`} className={styles.dailyPlanImage} /> : <p key={index}>Image loading failed</p>
-            ))}
-          </div>
+        </div>
+      )}
+      {selectedDestination && dailyPlan && (
+        <div className={styles.dailyPlanContainer}>
+          {dailyPlan.daily_plan.split('\n\n').map((day, index) => (
+            <div key={index} className={styles.dailyPlanDay}>
+              {day.split('\n').map((line, lineIndex) => (
+                <p key={lineIndex}>{line}</p>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Separate container for images */}
+      {selectedDestination && dailyPlan && dailyPlan.images.length > 0 && (
+        <div className={styles.dailyPlanImagesContainer}>
+          {dailyPlan.images.map((image, index) => (
+            image ? <img key={index} src={image} alt={`Visual representation ${index + 1}`} className={styles.dailyPlanImage} /> : <p key={index}>Image loading failed</p>
+          ))}
         </div>
       )}
     </div>

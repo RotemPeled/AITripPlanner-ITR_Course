@@ -88,7 +88,7 @@ def get_cheapest_flight(origin, destination, start_date, end_date):
         "outbound_date": start_date.strftime("%Y-%m-%d"),
         "return_date": end_date.strftime("%Y-%m-%d"),
         "currency": "USD",
-        "api_key": "a9ad98a9df6cd4d74a203c3dc95bd34899c999655d5a667bf8808efcd8ea04e5"
+        "api_key": "6f5f17be526c559a031e02d705262ce949a75c2d4002f0cf5a3c7b0bde6a05a2"
     }
     try:
         response = requests.get("https://serpapi.com/search", params=params)
@@ -113,14 +113,16 @@ def get_cheapest_flight(origin, destination, start_date, end_date):
         return {"city": destination['city'], "country": destination['country'], "price": None}
 
 def get_most_expensive_affordable_hotel(city, country, budget, start_date, end_date):
+    num_days = (end_date - start_date).days
     params = {
         "engine": "google_hotels",
         "q": f"hotels in {city}, {country}",
         "check_in_date": start_date.strftime("%Y-%m-%d"),
         "check_out_date": end_date.strftime("%Y-%m-%d"),
         "currency": "USD",
-        "sort_by": "3",  # sort by lowest price
-        "api_key": "a9ad98a9df6cd4d74a203c3dc95bd34899c999655d5a667bf8808efcd8ea04e5"
+        "max_price": budget,
+        "sort_by": "8",  # sort by highest rating
+        "api_key": "6f5f17be526c559a031e02d705262ce949a75c2d4002f0cf5a3c7b0bde6a05a2"
     }
 
     try:
@@ -139,8 +141,6 @@ def get_most_expensive_affordable_hotel(city, country, budget, start_date, end_d
                             "name": hotel["name"],
                             "price": price,
                         }
-                elif price and price > budget:
-                    break  # Break out of the loop if price exceeds the budget
 
             if most_expensive_affordable_hotel:
                 return most_expensive_affordable_hotel
@@ -193,24 +193,32 @@ def generate_daily_plan(destination, start_date, end_date):
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a travel guide and a creative advisor for visual content."},
-            {"role": "user", "content": f"I am planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}. Please suggest a detailed daily itinerary. At the end provide exactly 4 descriptions that could visually summarize the entire trip. make the description clear and detailed. please use this format for the 4 descriptions: visually summarize: \n1. A picture of the Eiffel Tower at sunset, symbolizing the iconic landmark of Paris.\n2. A snapshot of colorful flowers in full bloom at the gardens of Versailles, representing the beauty of French landscapes.\n3. An image of the Seine River with historic bridges in the background, showcasing the romantic charm of Paris.\n4. A shot of street artists painting in Montmartre, capturing the artistic spirit and bohemian vibe of the neighborhood."}
+            {"role": "user", "content": f"I am planning a trip to {destination} from {start_date.strftime('%B %d')} to {end_date.strftime('%B %d')}. Please suggest a detailed daily itinerary for whole the trip - from the start day to the end date. At the end provide exactly 4 descriptions that could visually summarize the entire trip. make the description clear and detailed. please use this format for the 4 descriptions: visually summarize: \n1. A picture of the Eiffel Tower at sunset, symbolizing the iconic landmark of Paris.\n2. A snapshot of colorful flowers in full bloom at the gardens of Versailles, representing the beauty of French landscapes.\n3. An image of the Seine River with historic bridges in the background, showcasing the romantic charm of Paris.\n4. A shot of street artists painting in Montmartre, capturing the artistic spirit and bohemian vibe of the neighborhood."}
         ]
     )
 
     # Full content of the response
     full_content = completion.choices[0].message.content
-
-    # Remove any asterisks from the content
+    
     cleaned_content = re.sub(r'\*+', '', full_content)
 
+    # Use regex to find the start of the itinerary starting with "Day 1" and remove everything before it
+    match = re.search(r'\bDay 1\b', cleaned_content, re.IGNORECASE)
+    if match:
+        # Trim everything before "Day 1"
+        trimmed_content = cleaned_content[match.start():]
+    else:
+        # If "Day 1" is not found, use the entire content as fallback
+        trimmed_content = cleaned_content
+        
     # Use regex to split the content at "visually summarize:" (case-insensitive)
-    parts = re.split(r'(?i)visually summarize:', cleaned_content, 1)  # '(?i)' is a regex flag for case-insensitive matching
+    parts = re.split(r'(?i)visually summariz(?:ing|e):?', trimmed_content, 1)  # '(?i)' is a regex flag for case-insensitive matching
     if len(parts) > 1:
         plan_content = parts[0].strip()
         image_descriptions_content = parts[1].strip()
-        image_descriptions = extract_image_descriptions("Visually summarize:" + image_descriptions_content)
+        image_descriptions = extract_image_descriptions(image_descriptions_content)
     else:
-        plan_content = full_content
+        plan_content = trimmed_content
         image_descriptions = []
 
     return plan_content, image_descriptions
