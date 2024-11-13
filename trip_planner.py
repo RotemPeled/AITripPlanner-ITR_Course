@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 # Initialize your API key at the start of your script
-api_key = 'sk-proj-SRGCSAzogrcsQIu2kwiZT3BlbkFJp02fsLG6iUdA7G5kEfKg'
+api_key = 'YOUR_API_KEY'
 client = OpenAI(api_key=api_key)
 
 class TripRequest(BaseModel):
